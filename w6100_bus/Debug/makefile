@@ -9,6 +9,12 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include io6Library/Internet/DNS/subdir.mk
+-include io6Library/Internet/DHCP6/subdir.mk
+-include io6Library/Internet/DHCP4/subdir.mk
+-include io6Library/Ethernet/W6100/subdir.mk
+-include io6Library/Ethernet/subdir.mk
+-include io6Library/Application/loopback/subdir.mk
 -include Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
@@ -61,8 +67,8 @@ all: main-build
 main-build: stm_W6100_bus.elf secondary-outputs
 
 # Tool invocations
-stm_W6100_bus.elf: $(OBJS) $(USER_OBJS) I:\Workspace\Wiznet\11.SOC\01_TestScenario\STM_W5x00_BUS_Test\w6100_bus\STM32H723ZGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "stm_W6100_bus.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"I:\Workspace\Wiznet\11.SOC\01_TestScenario\STM_W5x00_BUS_Test\w6100_bus\STM32H723ZGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm_W6100_bus.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+stm_W6100_bus.elf: $(OBJS) $(USER_OBJS) D:\wiznet\Teddy\Workspace\2021\06_TestAutomation\02_CODE\01_BusTest\STM_W5x00_BUS_Test\w6100_bus\STM32H723ZGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "stm_W6100_bus.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"D:\wiznet\Teddy\Workspace\2021\06_TestAutomation\02_CODE\01_BusTest\STM_W5x00_BUS_Test\w6100_bus\STM32H723ZGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm_W6100_bus.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

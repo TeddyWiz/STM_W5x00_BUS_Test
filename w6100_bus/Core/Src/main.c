@@ -23,11 +23,16 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stdio.h"
+#include "w6100.h"
+#include "wizchip_conf.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define True_STD //KEIL ,True_STD
+#define DATA_BUF_SIZE 512
 
 /* USER CODE END PTD */
 
@@ -37,6 +42,60 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+wiz_NetInfo gWIZNETINFO = { .mac = {0x00,0x08,0xdc,0xFF,0xFF,0xFF},
+							  .ip = {192,168,177,25},
+							  .sn = {255, 255, 255, 0},
+							  .gw = {192, 168, 177, 1},
+							  .dns = {168, 126, 63, 1},
+							  //.dhcp = NETINFO_STATIC,
+							  .lla={0xfe,0x80,0x00,0x00,
+									  0x00,0x00, 0x00,0x00,
+									  0x02,0x08, 0xdc,0xff,
+									  0xfe,0x57, 0x57,0x25},   ///< Source Link Local Address
+							  .gua={0x00, 0x00, 0x00, 0x00,
+									  0x00, 0x00, 0x00, 0x00,
+									  0x00, 0x00, 0x00, 0x00,
+									  0x00, 0x00, 0x00, 0x00},	 ///< Source Global Unicast Address
+							  .sn6={0xff,0xff,0xff,0xff,
+									  0xff,0xff,0xff,0xff,
+									  0x00, 0x00, 0x00, 0x00,
+									  0x00, 0x00, 0x00, 0x00 },   ///< IPv6 Prefix
+							  .gw6={0x00, 0x00, 0x00, 0x00,
+									  0x00, 0x00, 0x00, 0x00,
+									  0x00, 0x00, 0x00, 0x00,
+									  0x00, 0x00, 0x00, 0x00}	///< Gateway IPv6 Address
+  };
+  
+  uint8_t WIZ_Dest_IP_virtual[4] = {192, 168, 0, 230};					//DST_IP Address
+  uint8_t WIZ_Dest_IP_Google[4] = {216, 58, 200, 174};				//DST_IP Address
+  
+  uint8_t mcastipv4_0[4] ={239,1,2,3};
+  uint8_t mcastipv4_1[4] ={239,1,2,4};
+  uint8_t mcastipv4_2[4] ={239,1,2,5};
+  uint8_t mcastipv4_3[4] ={239,1,2,6};
+  
+  uint16_t WIZ_Dest_PORT = 15000;								  //DST_IP port
+  
+#define ETH_MAX_BUF_SIZE	1024
+  
+  uint8_t  remote_ip[4] = {192,168,177,200};					  //
+  uint16_t remote_port = 8080;
+  
+  unsigned char ethBuf0[ETH_MAX_BUF_SIZE];
+  unsigned char ethBuf1[ETH_MAX_BUF_SIZE];
+  unsigned char ethBuf2[ETH_MAX_BUF_SIZE];
+  unsigned char ethBuf3[ETH_MAX_BUF_SIZE];
+  unsigned char ethBuf4[ETH_MAX_BUF_SIZE];
+  unsigned char ethBuf5[ETH_MAX_BUF_SIZE];
+  unsigned char ethBuf6[ETH_MAX_BUF_SIZE];
+  unsigned char ethBuf7[ETH_MAX_BUF_SIZE];
+  
+  uint8_t bLoopback = 1;
+  uint8_t bRandomPacket = 0;
+  uint8_t bAnyPacket = 0;
+  uint16_t pack_size = 0;
+  
+  void print_network_information(void);
 
 /* USER CODE END PM */
 
@@ -73,6 +132,10 @@ UART_HandleTypeDef huart3;
 SRAM_HandleTypeDef hsram1;
 
 /* USER CODE BEGIN PV */
+uint8_t URX_BUF[DATA_BUF_SIZE];
+unsigned int URX_BUF_cnt = 0;
+unsigned int URX_BUF_Flag = 0;
+uint8_t rxData;
 
 /* USER CODE END PV */
 
@@ -84,11 +147,165 @@ static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_HS_USB_Init(void);
 static void MX_FMC_Init(void);
 /* USER CODE BEGIN PFP */
+#ifdef KEIL
+      #ifdef __GNUC__
+      //With GCC, small printf (option LD Linker->Libraries->Small printf
+      //set to 'Yes') calls __io_putchar()
+         #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+	  #else
+		 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+	  #endif /* __GNUC__*/
+    #if 1
+    PUTCHAR_PROTOTYPE
+    {
+      HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 0xFFFF);
+      return ch;
+    }
+    #endif
+  #endif
+
+  #ifdef True_STD
+  int _write(int fd, char *str, int len)
+  {
+    for(int i=0; i<len; i++)
+    {
+      HAL_UART_Transmit(&huart3, (uint8_t *)&str[i], 1, 0xFFFF);
+    }
+    return len;
+  }
+ #endif
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+
+	 /*
+		 This will be called once data is received successfully,
+		 via interrupts.
+	 */
+
+	  /*
+		loop back received data
+	  */
+	  HAL_UART_Receive_IT(&huart3, &rxData, 1);
+	  HAL_UART_Transmit(&huart3, &rxData, 1, 1000);
+	  //massage input end enter key flag
+	  URX_BUF[URX_BUF_cnt++] = rxData;
+	  if((rxData == '\r') ||(URX_BUF_cnt > DATA_BUF_SIZE))
+	  {
+		URX_BUF_Flag = 1;
+	  }
+ }
+void W6100BusWriteByte(uint32_t addr, iodata_t data)
+{
+	(*(volatile uint8_t*)(addr)) = data;
+}
+
+iodata_t W6100BusReadByte(uint32_t addr)
+{
+	return (*((volatile uint8_t*)(addr)));
+}
+
+void W6100BusWriteBurst(uint32_t addr, uint8_t* pBuf ,uint32_t len,uint8_t addr_inc)
+{
+#ifdef USE_STDPERIPH_DRIVER
+
+	if(addr_inc){
+	 	DMA_TX_InitStructure.DMA_MemoryInc  = DMA_MemoryInc_Enable;
+
+	}
+	else 	DMA_TX_InitStructure.DMA_MemoryInc  = DMA_MemoryInc_Disable;
+
+
+	DMA_TX_InitStructure.DMA_BufferSize = len;
+	DMA_TX_InitStructure.DMA_MemoryBaseAddr = addr;
+	DMA_TX_InitStructure.DMA_PeripheralBaseAddr = pBuf;
+
+	DMA_Init(W6100_DMA_CHANNEL_TX, &DMA_TX_InitStructure);
+
+	DMA_Cmd(W6100_DMA_CHANNEL_TX, ENABLE);
+
+	/* Enable SPI Rx/Tx DMA Request*/
+
+
+	/* Waiting for the end of Data Transfer */
+	while(DMA_GetFlagStatus(DMA_TX_FLAG) == RESET);
+
+
+	DMA_ClearFlag(DMA_TX_FLAG);
+
+	DMA_Cmd(W6100_DMA_CHANNEL_TX, DISABLE);
+
+#elif defined USE_HAL_DRIVER
+
+#endif
+
+}
+
+void W6100BusReadBurst(uint32_t addr,uint8_t* pBuf, uint32_t len,uint8_t addr_inc)
+{
+#ifdef USE_STDPERIPH_DRIVER
+
+	DMA_RX_InitStructure.DMA_BufferSize = len;
+	DMA_RX_InitStructure.DMA_MemoryBaseAddr =pBuf;
+	DMA_RX_InitStructure.DMA_PeripheralBaseAddr =addr;
+
+	DMA_Init(W6100_DMA_CHANNEL_RX, &DMA_RX_InitStructure);
+
+	DMA_Cmd(W6100_DMA_CHANNEL_RX, ENABLE);
+	/* Waiting for the end of Data Transfer */
+	while(DMA_GetFlagStatus(DMA_RX_FLAG) == RESET);
+
+
+	DMA_ClearFlag(DMA_RX_FLAG);
+
+
+	DMA_Cmd(W6100_DMA_CHANNEL_RX, DISABLE);
+
+#elif defined USE_HAL_DRIVER
+
+#endif
+
+	
+
+}
+void W6100Initialze(void)
+{
+		//W6100Reset();
+	
+#if _WIZCHIP_IO_MODE_ & _WIZCHIP_IO_MODE_SPI_
+	/* SPI method callback registration */
+	#if defined SPI_DMA
+		reg_wizchip_spi_cbfunc(W6100SpiReadByte, W6100SpiWriteByte, W6100SpiReadBurst, W6100SpiWriteBurst);
+	#else
+		reg_wizchip_spi_cbfunc(W6100SpiReadByte, W6100SpiWriteByte, 0, 0);
+	#endif
+		/* CS function register */
+		reg_wizchip_cs_cbfunc(W6100CsEnable, W6100CsDisable);
+#else
+	/* Indirect bus method callback registration */
+	#if defined BUS_DMA
+		reg_wizchip_bus_cbfunc(W6100BusReadByte, W6100BusWriteByte, W6100BusReadBurst, W6100BusWriteBurst);
+	#else
+		reg_wizchip_bus_cbfunc(W6100BusReadByte, W6100BusWriteByte, 0, 0);
+	#endif
+#endif
+		uint8_t temp;
+		unsigned char W6100_AdrSet[2][8] = {{2, 2, 2, 2, 2, 2, 2, 2}, {2, 2, 2, 2, 2, 2, 2, 2}};
+		do
+		{
+			if (ctlwizchip(CW_GET_PHYLINK, (void *)&temp) == -1)
+			{
+				printf("Unknown PHY link status.\r\n");
+			}
+		} while (temp == PHY_LINK_OFF);
+		printf("PHY OK.\r\n");
+	
+	
+}
+
 
 /* USER CODE END 0 */
 
@@ -108,7 +325,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -125,7 +342,10 @@ int main(void)
   MX_USB_OTG_HS_USB_Init();
   MX_FMC_Init();
   /* USER CODE BEGIN 2 */
-
+printf("Hello Start!!\r\n");
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET);
+  W6100Initialze();
+  print_network_information();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -442,6 +662,25 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void print_network_information(void)
+{
+	wizchip_getnetinfo(&gWIZNETINFO);
+
+	printf("Mac address: %02x:%02x:%02x:%02x:%02x:%02x\n\r",gWIZNETINFO.mac[0],gWIZNETINFO.mac[1],gWIZNETINFO.mac[2],gWIZNETINFO.mac[3],gWIZNETINFO.mac[4],gWIZNETINFO.mac[5]);
+	printf("IP address : %d.%d.%d.%d\n\r",gWIZNETINFO.ip[0],gWIZNETINFO.ip[1],gWIZNETINFO.ip[2],gWIZNETINFO.ip[3]);
+	printf("SM Mask    : %d.%d.%d.%d\n\r",gWIZNETINFO.sn[0],gWIZNETINFO.sn[1],gWIZNETINFO.sn[2],gWIZNETINFO.sn[3]);
+	printf("Gate way   : %d.%d.%d.%d\n\r",gWIZNETINFO.gw[0],gWIZNETINFO.gw[1],gWIZNETINFO.gw[2],gWIZNETINFO.gw[3]);
+	printf("DNS Server : %d.%d.%d.%d\n\r",gWIZNETINFO.dns[0],gWIZNETINFO.dns[1],gWIZNETINFO.dns[2],gWIZNETINFO.dns[3]);
+
+/*
+	print_ipv6_addr("GW6 ", gWIZNETINFO.gw6);
+	print_ipv6_addr("LLA ", gWIZNETINFO.lla);
+	print_ipv6_addr("GUA ", gWIZNETINFO.gua);
+	print_ipv6_addr("SUB6", gWIZNETINFO.sn6);
+	*/
+
+	printf("\r\nNETCFGLOCK : %x\r\n", getNETLCKR());
+}
 
 /* USER CODE END 4 */
 

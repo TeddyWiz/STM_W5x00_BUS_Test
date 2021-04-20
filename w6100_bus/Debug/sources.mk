@@ -23,4 +23,10 @@ SUBDIRS := \
 Core/Src \
 Core/Startup \
 Drivers/STM32H7xx_HAL_Driver/Src \
+io6Library/Application/loopback \
+io6Library/Ethernet/W6100 \
+io6Library/Ethernet \
+io6Library/Internet/DHCP4 \
+io6Library/Internet/DHCP6 \
+io6Library/Internet/DNS \
 
