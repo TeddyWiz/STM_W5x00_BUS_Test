@@ -68,7 +68,7 @@ main-build: stm_W6100_bus.elf secondary-outputs
 
 # Tool invocations
 stm_W6100_bus.elf: $(OBJS) $(USER_OBJS) D:\wiznet\Teddy\Workspace\2021\06_TestAutomation\02_CODE\01_BusTest\STM_W5x00_BUS_Test\w6100_bus\STM32H723ZGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "stm_W6100_bus.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"D:\wiznet\Teddy\Workspace\2021\06_TestAutomation\02_CODE\01_BusTest\STM_W5x00_BUS_Test\w6100_bus\STM32H723ZGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm_W6100_bus.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "stm_W6100_bus.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"D:\wiznet\Teddy\Workspace\2021\06_TestAutomation\02_CODE\01_BusTest\STM_W5x00_BUS_Test\w6100_bus\STM32H723ZGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm_W6100_bus.map" -Wl,--gc-sections -static -L"D:\wiznet\Teddy\Workspace\2021\06_TestAutomation\02_CODE\01_BusTest\STM_W5x00_BUS_Test\w6100_bus\io6Library" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
