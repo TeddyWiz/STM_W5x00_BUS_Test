@@ -203,12 +203,22 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  }
 void W6100BusWriteByte(uint32_t addr, iodata_t data)
 {
+	#if 0	//teddy 210422
 	(*(volatile uint8_t*)(addr)) = data;
+	#endif
+	if(HAL_SRAM_Write_8b(&hsram1, &addr, &data, 1) != HAL_OK)
+		printf("BusWritError \r\n");
 }
 
 iodata_t W6100BusReadByte(uint32_t addr)
 {
+	#if 0	//teddy 210422
 	return (*((volatile uint8_t*)(addr)));
+	#endif
+	iodata_t result = 0;
+	if(HAL_SRAM_Read_8b(&hsram1, &addr, &result, 1) != HAL_OK)
+		printf("BussReadError \r\n");
+	return result;
 }
 
 void W6100BusWriteBurst(uint32_t addr, uint8_t* pBuf ,uint32_t len,uint8_t addr_inc)
@@ -297,6 +307,7 @@ void W6100Initialze(void)
 #endif
 		uint8_t temp;
 		unsigned char W6100_AdrSet[2][8] = {{2, 2, 2, 2, 2, 2, 2, 2}, {2, 2, 2, 2, 2, 2, 2, 2}};
+		#if 0 //teddy st
 		do
 		{
 			if (ctlwizchip(CW_GET_PHYLINK, (void *)&temp) == -1)
@@ -304,6 +315,12 @@ void W6100Initialze(void)
 				printf("Unknown PHY link status.\r\n");
 			}
 		} while (temp == PHY_LINK_OFF);
+	 	#endif
+		uint16_t RegTemp = 0;
+		RegTemp = getCIDR();
+		printf("CIDR = %04x \r\n", RegTemp);
+		RegTemp = getVER();
+		printf("VER = %04x \r\n", RegTemp);
 		printf("PHY OK.\r\n");
 	
 	
@@ -346,9 +363,11 @@ int main(void)
   MX_FMC_Init();
   MX_DMA2D_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11|GPIO_PIN_3, GPIO_PIN_SET);
 printf("Hello Start!!\r\n");
   W6100Initialze();
+  ctlnetwork(CN_SET_NETINFO,&gWIZNETINFO);
+  printf("Register value after W6100 initialize!\r\n");
   print_network_information();
   /* USER CODE END 2 */
 
@@ -603,16 +622,16 @@ static void MX_FMC_Init(void)
   hsram1.Init.WriteOperation = FMC_WRITE_OPERATION_ENABLE;
   hsram1.Init.WaitSignal = FMC_WAIT_SIGNAL_DISABLE;
   hsram1.Init.ExtendedMode = FMC_EXTENDED_MODE_DISABLE;
-  hsram1.Init.AsynchronousWait = FMC_ASYNCHRONOUS_WAIT_ENABLE;
+  hsram1.Init.AsynchronousWait = FMC_ASYNCHRONOUS_WAIT_DISABLE;
   hsram1.Init.WriteBurst = FMC_WRITE_BURST_DISABLE;
   hsram1.Init.ContinuousClock = FMC_CONTINUOUS_CLOCK_SYNC_ONLY;
-  hsram1.Init.WriteFifo = FMC_WRITE_FIFO_ENABLE;
+  hsram1.Init.WriteFifo = FMC_WRITE_FIFO_DISABLE;
   hsram1.Init.PageSize = FMC_PAGE_SIZE_NONE;
   /* Timing */
-  Timing.AddressSetupTime = 15;
+  Timing.AddressSetupTime = 4;
   Timing.AddressHoldTime = 15;
-  Timing.DataSetupTime = 255;
-  Timing.BusTurnAroundDuration = 15;
+  Timing.DataSetupTime = 2;
+  Timing.BusTurnAroundDuration = 1;
   Timing.CLKDivision = 16;
   Timing.DataLatency = 17;
   Timing.AccessMode = FMC_ACCESS_MODE_A;

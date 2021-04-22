@@ -1,0 +1,5 @@
+---- CommandSet Matches (0 in 0 files) ----
+---- CommandSet Search Errors Encountered (2) ----
+The following 2 files could not be processed:
+D:\wiznet\Teddy\Workspace\2021\06_TestAutomation\02_CODE\01_BusTest\STM_W5x00_BUS_Test\w6100_bus\Drivers\STM32H7xx_HAL_Driver\Src\stm32h7xx_hal_sram.c : File could not be opened.
+D:\wiznet\Teddy\Workspace\2021\06_TestAutomation\02_CODE\01_BusTest\STM_W5x00_BUS_Test\w6100_bus\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_sram.h : File could not be opened.
