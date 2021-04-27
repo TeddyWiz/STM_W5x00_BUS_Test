@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "string.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -33,7 +32,7 @@
 /* USER CODE BEGIN PTD */
 #define True_STD //KEIL ,True_STD
 #define DATA_BUF_SIZE 512
-
+//#define BUS_DMA
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -97,37 +96,28 @@ wiz_NetInfo gWIZNETINFO = { .mac = {0x00,0x08,0xdc,0xFF,0xFF,0xFF},
   
   void print_network_information(void);
 
+#define SRAM_BANK_ADDR  ((uint32_t)0x60000000)
+#define BUFFER_SIZE         ((uint32_t)0x0100)
+#define WRITE_READ_ADDR     ((uint32_t)0x0800)
+uint32_t aTxBuffer[BUFFER_SIZE];
+uint32_t aRxBuffer[BUFFER_SIZE];
+
+static void Fill_Buffer(uint32_t *pBuffer, uint32_t uwBufferLength, uint16_t uwOffset)
+{
+  uint16_t tmpIndex = 0;
+
+  /* Put in global buffer different values */
+  for (tmpIndex = 0; tmpIndex < uwBufferLength; tmpIndex++)
+  {
+    pBuffer[tmpIndex] = tmpIndex + uwOffset;
+  }
+}
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-#if defined ( __ICCARM__ ) /*!< IAR Compiler */
-
-#pragma location=0x30040000
-ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-#pragma location=0x30040060
-ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
-#pragma location=0x30040200
-uint8_t Rx_Buff[ETH_RX_DESC_CNT][ETH_MAX_PACKET_SIZE]; /* Ethernet Receive Buffers */
-
-#elif defined ( __CC_ARM )  /* MDK ARM Compiler */
-
-__attribute__((at(0x30040000))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-__attribute__((at(0x30040060))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
-__attribute__((at(0x30040200))) uint8_t Rx_Buff[ETH_RX_DESC_CNT][ETH_MAX_PACKET_SIZE]; /* Ethernet Receive Buffer */
-
-#elif defined ( __GNUC__ ) /* GNU Compiler */
-
-ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT] __attribute__((section(".RxDecripSection"))); /* Ethernet Rx DMA Descriptors */
-ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecripSection")));   /* Ethernet Tx DMA Descriptors */
-uint8_t Rx_Buff[ETH_RX_DESC_CNT][ETH_MAX_PACKET_SIZE] __attribute__((section(".RxArraySection"))); /* Ethernet Receive Buffers */
-
-#endif
-
-ETH_TxPacketConfig TxConfig;
 
 DMA2D_HandleTypeDef hdma2d;
-
-ETH_HandleTypeDef heth;
 
 UART_HandleTypeDef huart3;
 
@@ -144,7 +134,6 @@ uint8_t rxData;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_HS_USB_Init(void);
 static void MX_FMC_Init(void);
@@ -203,22 +192,28 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
  }
 void W6100BusWriteByte(uint32_t addr, iodata_t data)
 {
-	#if 0	//teddy 210422
+	#if 1	//teddy 210422
 	(*(volatile uint8_t*)(addr)) = data;
-	#endif
-	if(HAL_SRAM_Write_8b(&hsram1, &addr, &data, 1) != HAL_OK)
+	#else
+	iodata_t Indata[2]={0, 0};
+	Indata[0] = data;
+	printf("W%x:%x ",addr, data);
+	if(HAL_SRAM_Write_8b(&hsram1, (uint32_t *)addr, (uint16_t *)data, 1) != HAL_OK)
 		printf("BusWritError \r\n");
+	#endif
 }
 
 iodata_t W6100BusReadByte(uint32_t addr)
 {
-	#if 0	//teddy 210422
+	#if 1	//teddy 210422
 	return (*((volatile uint8_t*)(addr)));
-	#endif
-	iodata_t result = 0;
-	if(HAL_SRAM_Read_8b(&hsram1, &addr, &result, 1) != HAL_OK)
+	#else
+	iodata_t result[2] = {0,0};
+	if(HAL_SRAM_Read_8b(&hsram1, (uint32_t *)addr, (uint16_t *)result, 1) != HAL_OK)
 		printf("BussReadError \r\n");
-	return result;
+	printf("R%x:%x ", addr, result[0]);
+	return result[0];
+	#endif
 }
 
 void W6100BusWriteBurst(uint32_t addr, uint8_t* pBuf ,uint32_t len,uint8_t addr_inc)
@@ -254,6 +249,9 @@ void W6100BusWriteBurst(uint32_t addr, uint8_t* pBuf ,uint32_t len,uint8_t addr_
 #elif defined USE_HAL_DRIVER
 
 #endif
+	if(HAL_SRAM_Write_8b(&hsram1, (uint32_t *)addr, pBuf, len) != HAL_OK)
+		printf("BusWritError \r\n");
+
 
 }
 
@@ -281,7 +279,8 @@ void W6100BusReadBurst(uint32_t addr,uint8_t* pBuf, uint32_t len,uint8_t addr_in
 
 #endif
 
-	
+	if(HAL_SRAM_Read_8b(&hsram1, (uint32_t *)addr, pBuf, len) != HAL_OK)
+			printf("BussReadError \r\n");
 
 }
 void W6100Initialze(void)
@@ -317,10 +316,12 @@ void W6100Initialze(void)
 		} while (temp == PHY_LINK_OFF);
 	 	#endif
 		uint16_t RegTemp = 0;
+		//RegTemp = (uint16_t)WIZCHIP_READ(_CIDR_);
+		//printf("CIDR_ = %04x \r\n", RegTemp);	
 		RegTemp = getCIDR();
-		printf("CIDR = %04x \r\n", RegTemp);
+		printf("CIDR = %d \r\n", RegTemp);
 		RegTemp = getVER();
-		printf("VER = %04x \r\n", RegTemp);
+		printf("VER = %d \r\n", RegTemp);
 		printf("PHY OK.\r\n");
 	
 	
@@ -357,18 +358,25 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_ETH_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_HS_USB_Init();
   MX_FMC_Init();
   MX_DMA2D_Init();
   /* USER CODE BEGIN 2 */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11|GPIO_PIN_3, GPIO_PIN_SET);
+  HAL_Delay(100);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
+  HAL_Delay(500);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET);
+  HAL_Delay(500);
 printf("Hello Start!!\r\n");
+  Fill_Buffer(aTxBuffer, BUFFER_SIZE, 0xC20F);
+  //HAL_SRAM_Write_16b(&hsram1, (uint32_t *)(SRAM_BANK_ADDR + WRITE_READ_ADDR), (uint16_t *)aTxBuffer, BUFFER_SIZE*2);
+
   W6100Initialze();
-  ctlnetwork(CN_SET_NETINFO,&gWIZNETINFO);
+  //ctlnetwork(CN_SET_NETINFO,&gWIZNETINFO);
   printf("Register value after W6100 initialize!\r\n");
-  print_network_information();
+  //print_network_information();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -402,13 +410,14 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 24;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 12;
   RCC_OscInitStruct.PLL.PLLP = 1;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
@@ -475,52 +484,6 @@ static void MX_DMA2D_Init(void)
   /* USER CODE BEGIN DMA2D_Init 2 */
 
   /* USER CODE END DMA2D_Init 2 */
-
-}
-
-/**
-  * @brief ETH Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ETH_Init(void)
-{
-
-  /* USER CODE BEGIN ETH_Init 0 */
-
-  /* USER CODE END ETH_Init 0 */
-
-  /* USER CODE BEGIN ETH_Init 1 */
-
-  /* USER CODE END ETH_Init 1 */
-  heth.Instance = ETH;
-  heth.Init.MACAddr[0] =   0x00;
-  heth.Init.MACAddr[1] =   0x80;
-  heth.Init.MACAddr[2] =   0xE1;
-  heth.Init.MACAddr[3] =   0x00;
-  heth.Init.MACAddr[4] =   0x00;
-  heth.Init.MACAddr[5] =   0x00;
-  heth.Init.MediaInterface = HAL_ETH_RMII_MODE;
-  heth.Init.TxDesc = DMATxDscrTab;
-  heth.Init.RxDesc = DMARxDscrTab;
-  heth.Init.RxBuffLen = 1524;
-
-  /* USER CODE BEGIN MACADDRESS */
-
-  /* USER CODE END MACADDRESS */
-
-  if (HAL_ETH_Init(&heth) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  memset(&TxConfig, 0 , sizeof(ETH_TxPacketConfig));
-  TxConfig.Attributes = ETH_TX_PACKETS_FEATURES_CSUM | ETH_TX_PACKETS_FEATURES_CRCPAD;
-  TxConfig.ChecksumCtrl = ETH_CHECKSUM_IPHDR_PAYLOAD_INSERT_PHDR_CALC;
-  TxConfig.CRCPadCtrl = ETH_CRC_PAD_INSERT;
-  /* USER CODE BEGIN ETH_Init 2 */
-
-  /* USER CODE END ETH_Init 2 */
 
 }
 
@@ -659,12 +622,11 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED_GREEN_Pin|LED_RED_Pin, GPIO_PIN_RESET);
@@ -700,12 +662,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USB_FS_OVCR_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : USB_FS_VBUS_Pin */
-  GPIO_InitStruct.Pin = USB_FS_VBUS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(USB_FS_VBUS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_FS_ID_Pin */
   GPIO_InitStruct.Pin = USB_FS_ID_Pin;
