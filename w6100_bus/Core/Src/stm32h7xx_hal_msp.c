@@ -138,7 +138,15 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
   /** Initializes the peripherals clock
   */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART3;
-    PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
+    PeriphClkInitStruct.PLL2.PLL2M = 1;
+    PeriphClkInitStruct.PLL2.PLL2N = 80;
+    PeriphClkInitStruct.PLL2.PLL2P = 2;
+    PeriphClkInitStruct.PLL2.PLL2Q = 40;
+    PeriphClkInitStruct.PLL2.PLL2R = 2;
+    PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_2;
+    PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
+    PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+    PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_PLL2;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
     {
       Error_Handler();
@@ -274,14 +282,14 @@ static void HAL_FMC_MspInit(void){
   /* USER CODE END FMC_MspInit 1 */
 }
 
-void HAL_SRAM_MspInit(SRAM_HandleTypeDef* hsram){
-  /* USER CODE BEGIN SRAM_MspInit 0 */
+void HAL_NOR_MspInit(NOR_HandleTypeDef* hnor){
+  /* USER CODE BEGIN NOR_MspInit 0 */
 
-  /* USER CODE END SRAM_MspInit 0 */
+  /* USER CODE END NOR_MspInit 0 */
   HAL_FMC_MspInit();
-  /* USER CODE BEGIN SRAM_MspInit 1 */
+  /* USER CODE BEGIN NOR_MspInit 1 */
 
-  /* USER CODE END SRAM_MspInit 1 */
+  /* USER CODE END NOR_MspInit 1 */
 }
 
 static uint32_t FMC_DeInitialized = 0;
@@ -326,14 +334,14 @@ static void HAL_FMC_MspDeInit(void){
   /* USER CODE END FMC_MspDeInit 1 */
 }
 
-void HAL_SRAM_MspDeInit(SRAM_HandleTypeDef* hsram){
-  /* USER CODE BEGIN SRAM_MspDeInit 0 */
+void HAL_NOR_MspDeInit(NOR_HandleTypeDef* hnor){
+  /* USER CODE BEGIN NOR_MspDeInit 0 */
 
-  /* USER CODE END SRAM_MspDeInit 0 */
+  /* USER CODE END NOR_MspDeInit 0 */
   HAL_FMC_MspDeInit();
-  /* USER CODE BEGIN SRAM_MspDeInit 1 */
+  /* USER CODE BEGIN NOR_MspDeInit 1 */
 
-  /* USER CODE END SRAM_MspDeInit 1 */
+  /* USER CODE END NOR_MspDeInit 1 */
 }
 
 /* USER CODE BEGIN 1 */

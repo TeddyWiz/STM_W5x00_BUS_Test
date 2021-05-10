@@ -18,11 +18,11 @@ C_SRCS += \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c \
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_nor.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c \
-../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sram.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart.c \
@@ -43,11 +43,11 @@ OBJS += \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.o \
+./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_nor.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.o \
-./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sram.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart.o \
@@ -68,11 +68,11 @@ C_DEPS += \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.d \
+./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_nor.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.d \
-./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sram.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart.d \
@@ -107,6 +107,8 @@ Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.o: ../Drivers/STM32H7xx_HA
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -c -I../Core/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/CMSIS/Include -I../io6Library/Ethernet -I../io6Library/Ethernet/W6100 -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c_ex.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.c Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -c -I../Core/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/CMSIS/Include -I../io6Library/Ethernet -I../io6Library/Ethernet/W6100 -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_mdma.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_nor.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_nor.c Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -c -I../Core/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/CMSIS/Include -I../io6Library/Ethernet -I../io6Library/Ethernet/W6100 -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_nor.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.c Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -c -I../Core/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/CMSIS/Include -I../io6Library/Ethernet -I../io6Library/Ethernet/W6100 -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
@@ -115,8 +117,6 @@ Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.o: ../Drivers/STM32H7xx_HAL_D
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -c -I../Core/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/CMSIS/Include -I../io6Library/Ethernet -I../io6Library/Ethernet/W6100 -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -c -I../Core/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/CMSIS/Include -I../io6Library/Ethernet -I../io6Library/Ethernet/W6100 -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
-Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sram.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sram.c Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
-	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -c -I../Core/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/CMSIS/Include -I../io6Library/Ethernet -I../io6Library/Ethernet/W6100 -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sram.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -c -I../Core/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/CMSIS/Include -I../io6Library/Ethernet -I../io6Library/Ethernet/W6100 -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk

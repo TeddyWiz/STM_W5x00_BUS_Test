@@ -97,8 +97,8 @@ wiz_NetInfo gWIZNETINFO = { .mac = {0x00,0x08,0xdc,0xFF,0xFF,0xFF},
   void print_network_information(void);
 
 #define SRAM_BANK_ADDR  ((uint32_t)0x60000000)
-#define BUFFER_SIZE         ((uint32_t)0x0100)
-#define WRITE_READ_ADDR     ((uint32_t)0x0800)
+#define BUFFER_SIZE         ((uint32_t)0x0002)
+#define WRITE_READ_ADDR     ((uint32_t)0x0000)
 uint32_t aTxBuffer[BUFFER_SIZE];
 uint32_t aRxBuffer[BUFFER_SIZE];
 
@@ -121,7 +121,7 @@ DMA2D_HandleTypeDef hdma2d;
 
 UART_HandleTypeDef huart3;
 
-SRAM_HandleTypeDef hsram1;
+NOR_HandleTypeDef hnor1;
 
 /* USER CODE BEGIN PV */
 uint8_t URX_BUF[DATA_BUF_SIZE];
@@ -193,7 +193,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 void W6100BusWriteByte(uint32_t addr, iodata_t data)
 {
 	#if 1	//teddy 210422
-	(*(volatile uint32_t*)(addr)) = (uint8_t)(data);
+	//(*(volatile uint8_t*)(addr)) = (uint8_t)(data);
+	(*(__IO uint8_t *)((uint32_t)(addr)) = (data)); 
 	#else
 	iodata_t Indata[2]={0, 0};
 	Indata[0] = data;
@@ -206,7 +207,8 @@ void W6100BusWriteByte(uint32_t addr, iodata_t data)
 iodata_t W6100BusReadByte(uint32_t addr)
 {
 	#if 1	//teddy 210422
-	return (*((volatile uint32_t*)(addr)));
+	//return (*((volatile uint8_t*)(addr)));
+	return *(__IO uint8_t *)((uint32_t)(addr));
 	#else
 	iodata_t result[2] = {0,0};
 	if(HAL_SRAM_Read_8b(&hsram1, (uint32_t *)addr, (uint16_t *)result, 1) != HAL_OK)
@@ -249,8 +251,10 @@ void W6100BusWriteBurst(uint32_t addr, uint8_t* pBuf ,uint32_t len,uint8_t addr_
 #elif defined USE_HAL_DRIVER
 
 #endif
+#if 0
 	if(HAL_SRAM_Write_8b(&hsram1, (uint32_t *)addr, pBuf, len) != HAL_OK)
 		printf("BusWritError \r\n");
+#endif
 
 
 }
@@ -278,21 +282,26 @@ void W6100BusReadBurst(uint32_t addr,uint8_t* pBuf, uint32_t len,uint8_t addr_in
 #elif defined USE_HAL_DRIVER
 
 #endif
-
+#if 0
 	if(HAL_SRAM_Read_8b(&hsram1, (uint32_t *)addr, pBuf, len) != HAL_OK)
 			printf("BussReadError \r\n");
+#endif
 
 }
 void W6100CsEnable(void)
 {
+#if 0
 	__HAL_LOCK(&hsram1);
 	hsram1.State = HAL_SRAM_STATE_BUSY;
+#endif
 }
 
 void W6100CsDisable(void)
 {
+#if 0
 	__HAL_UNLOCK(&hsram1);
 	hsram1.State = HAL_SRAM_STATE_READY;
+#endif
 }
 
 void W6100Initialze(void)
@@ -332,9 +341,9 @@ void W6100Initialze(void)
 		//RegTemp = (uint16_t)WIZCHIP_READ(_CIDR_);
 		//printf("CIDR_ = %04x \r\n", RegTemp);	
 		RegTemp = getCIDR();
-		printf("CIDR = %d \r\n", RegTemp);
+		printf("CIDR = %04x \r\n", RegTemp);
 		RegTemp = getVER();
-		printf("VER = %d \r\n", RegTemp);
+		printf("VER = %04x \r\n", RegTemp);
 		printf("PHY OK.\r\n");
 	
 	
@@ -350,7 +359,8 @@ void W6100Initialze(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  uint8_t temp1 = 0, temp2 = 0, *temp=NULL;
+  temp = (volatile uint8_t*)(0x60000003);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -383,9 +393,47 @@ int main(void)
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET);
   HAL_Delay(500);
 printf("Hello Start!!\r\n");
-  Fill_Buffer(aTxBuffer, BUFFER_SIZE, 0xC20F);
+  Fill_Buffer(aTxBuffer, BUFFER_SIZE, 0x0000);
   //HAL_SRAM_Write_16b(&hsram1, (uint32_t *)(SRAM_BANK_ADDR + WRITE_READ_ADDR), (uint16_t *)aTxBuffer, BUFFER_SIZE*2);
+  //HAL_SRAM_Write_8b(&hsram1, (uint32_t *)(SRAM_BANK_ADDR + WRITE_READ_ADDR), (uint8_t *)aTxBuffer, BUFFER_SIZE);
+  printf("Hello Start!!\r\n");
+#if 0
+  //(*(volatile uint8_t*)(0x60000000)) = (uint8_t)(0x00);
+  (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x02);
+  //(*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
+  temp1 = (*(volatile uint8_t*)(0x60000003));
 
+  //(*(volatile uint8_t*)(0x60000000)) = (uint8_t)(0x00);
+  (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x03);
+  //(*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
+  temp2 = (*(volatile uint8_t*)(0x60000003));
+#else
+  (*(volatile uint8_t*)(0x60000000)) = 0x00;
+
+  //__HAL_LOCK(&hsram1);
+	//  hsram1.State = HAL_SRAM_STATE_BUSY;
+
+	//(*(volatile uint32_t*)(0x60000000)) = (0x00<<16)|(0x02<<8)|(0x00);
+	(*(volatile uint8_t*)(0x60000000)) = (uint8_t)(0x00);
+    (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x02);
+    (*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
+    temp1 = (*(volatile uint8_t*)(0x60000003));
+
+//	__HAL_UNLOCK(&hsram1);
+//	hsram1.State = HAL_SRAM_STATE_READY;
+		
+	//__HAL_LOCK(&hsram1);
+	//hsram1.State = HAL_SRAM_STATE_BUSY;
+	//(*(volatile uint32_t*)(0x60000000)) = (0x00<<16)|(0x03<<8)|(0x00);
+    (*(volatile uint8_t*)(0x60000000)) = (uint8_t)(0x00);
+    (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x03);
+    (*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
+    temp2 = (*(volatile uint8_t*)(0x60000003));
+	//temp2 = *temp;
+	//__HAL_UNLOCK(&hsram1);
+	//hsram1.State = HAL_SRAM_STATE_READY;
+#endif
+  printf("VER = 0x%02x%02x \r\n", temp1, temp2);
   W6100Initialze();
   //ctlnetwork(CN_SET_NETINFO,&gWIZNETINFO);
   printf("Register value after W6100 initialize!\r\n");
@@ -421,6 +469,9 @@ void SystemClock_Config(void)
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
+  /** Macro to configure the PLL clock source
+  */
+  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_CSI);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -594,40 +645,41 @@ static void MX_FMC_Init(void)
   FMC_NORSRAM_TimingTypeDef Timing = {0};
 
   /* USER CODE BEGIN FMC_Init 1 */
-
+  hnor1.CommandSet = (uint16_t)0x0001;
   /* USER CODE END FMC_Init 1 */
 
-  /** Perform the SRAM1 memory initialization sequence
+  /** Perform the NOR1 memory initialization sequence
   */
-  hsram1.Instance = FMC_NORSRAM_DEVICE;
-  hsram1.Extended = FMC_NORSRAM_EXTENDED_DEVICE;
-  /* hsram1.Init */
-  hsram1.Init.NSBank = FMC_NORSRAM_BANK1;
-  hsram1.Init.DataAddressMux = FMC_DATA_ADDRESS_MUX_DISABLE;
-  hsram1.Init.MemoryType = FMC_MEMORY_TYPE_SRAM;
-  hsram1.Init.MemoryDataWidth = FMC_NORSRAM_MEM_BUS_WIDTH_8;
-  hsram1.Init.BurstAccessMode = FMC_BURST_ACCESS_MODE_DISABLE;
-  hsram1.Init.WaitSignalPolarity = FMC_WAIT_SIGNAL_POLARITY_LOW;
-  hsram1.Init.WaitSignalActive = FMC_WAIT_TIMING_BEFORE_WS;
-  hsram1.Init.WriteOperation = FMC_WRITE_OPERATION_ENABLE;
-  hsram1.Init.WaitSignal = FMC_WAIT_SIGNAL_DISABLE;
-  hsram1.Init.ExtendedMode = FMC_EXTENDED_MODE_DISABLE;
-  hsram1.Init.AsynchronousWait = FMC_ASYNCHRONOUS_WAIT_DISABLE;
-  hsram1.Init.WriteBurst = FMC_WRITE_BURST_DISABLE;
-  hsram1.Init.ContinuousClock = FMC_CONTINUOUS_CLOCK_SYNC_ONLY;
-  hsram1.Init.WriteFifo = FMC_WRITE_FIFO_DISABLE;
-  hsram1.Init.PageSize = FMC_PAGE_SIZE_NONE;
+  hnor1.Instance = FMC_NORSRAM_DEVICE;
+  hnor1.Extended = FMC_NORSRAM_EXTENDED_DEVICE;
+  /* hnor1.Init */
+  hnor1.Init.NSBank = FMC_NORSRAM_BANK1;
+  hnor1.Init.DataAddressMux = FMC_DATA_ADDRESS_MUX_DISABLE;
+  hnor1.Init.MemoryType = FMC_MEMORY_TYPE_NOR;
+  hnor1.Init.MemoryDataWidth = FMC_NORSRAM_MEM_BUS_WIDTH_8;
+  hnor1.Init.BurstAccessMode = FMC_BURST_ACCESS_MODE_DISABLE;
+  hnor1.Init.WaitSignalPolarity = FMC_WAIT_SIGNAL_POLARITY_LOW;
+  hnor1.Init.WaitSignalActive = FMC_WAIT_TIMING_BEFORE_WS;
+  hnor1.Init.WriteOperation = FMC_WRITE_OPERATION_ENABLE;
+  hnor1.Init.WaitSignal = FMC_WAIT_SIGNAL_DISABLE;
+  hnor1.Init.ExtendedMode = FMC_EXTENDED_MODE_DISABLE;
+  hnor1.Init.AsynchronousWait = FMC_ASYNCHRONOUS_WAIT_DISABLE;
+  hnor1.Init.WriteBurst = FMC_WRITE_BURST_DISABLE;
+  hnor1.Init.ContinuousClock = FMC_CONTINUOUS_CLOCK_SYNC_ONLY;
+  hnor1.Init.WriteFifo = FMC_WRITE_FIFO_ENABLE;
+  hnor1.Init.PageSize = FMC_PAGE_SIZE_NONE;
+
   /* Timing */
-  Timing.AddressSetupTime = 4;
+  Timing.AddressSetupTime = 15;
   Timing.AddressHoldTime = 15;
-  Timing.DataSetupTime = 2;
-  Timing.BusTurnAroundDuration = 1;
+  Timing.DataSetupTime = 255;
+  Timing.BusTurnAroundDuration = 15;
   Timing.CLKDivision = 16;
   Timing.DataLatency = 17;
   Timing.AccessMode = FMC_ACCESS_MODE_A;
   /* ExtTiming */
 
-  if (HAL_SRAM_Init(&hsram1, &Timing, NULL) != HAL_OK)
+  if (HAL_NOR_Init(&hnor1, &Timing, NULL) != HAL_OK)
   {
     Error_Handler( );
   }
