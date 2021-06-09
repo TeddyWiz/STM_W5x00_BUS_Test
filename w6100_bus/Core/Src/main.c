@@ -42,9 +42,9 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 wiz_NetInfo gWIZNETINFO = { .mac = {0x00,0x08,0xdc,0xFF,0xFF,0xFF},
-							  .ip = {192,168,177,25},
+							  .ip = {192,168,1,55},
 							  .sn = {255, 255, 255, 0},
-							  .gw = {192, 168, 177, 1},
+							  .gw = {192, 168, 1, 1},
 							  .dns = {168, 126, 63, 1},
 							  //.dhcp = NETINFO_STATIC,
 							  .lla={0xfe,0x80,0x00,0x00,
@@ -328,7 +328,15 @@ void W6100Initialze(void)
 #endif
 		uint8_t temp;
 		unsigned char W6100_AdrSet[2][8] = {{2, 2, 2, 2, 2, 2, 2, 2}, {2, 2, 2, 2, 2, 2, 2, 2}};
-		#if 0 //teddy st
+		uint16_t RegTemp = 0;
+		//RegTemp = (uint16_t)WIZCHIP_READ(_CIDR_);
+		//printf("CIDR_ = %04x \r\n", RegTemp);
+		RegTemp = getCIDR();
+		printf("CIDR = %04x \r\n", RegTemp);
+		RegTemp = getVER();
+		printf("VER = %04x \r\n", RegTemp);
+
+		#if 1 //teddy st
 		do
 		{
 			if (ctlwizchip(CW_GET_PHYLINK, (void *)&temp) == -1)
@@ -337,13 +345,7 @@ void W6100Initialze(void)
 			}
 		} while (temp == PHY_LINK_OFF);
 	 	#endif
-		uint16_t RegTemp = 0;
-		//RegTemp = (uint16_t)WIZCHIP_READ(_CIDR_);
-		//printf("CIDR_ = %04x \r\n", RegTemp);	
-		RegTemp = getCIDR();
-		printf("CIDR = %04x \r\n", RegTemp);
-		RegTemp = getVER();
-		printf("VER = %04x \r\n", RegTemp);
+
 		printf("PHY OK.\r\n");
 	
 	
@@ -360,7 +362,8 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
   uint8_t temp1 = 0, temp2 = 0, *temp=NULL;
-  temp = (volatile uint8_t*)(0x60000003);
+  //temp = (volatile uint8_t*)(0x60000003);
+  uint8_t syslock = SYS_NET_LOCK;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -408,7 +411,7 @@ printf("Hello Start!!\r\n");
   //(*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
   temp2 = (*(volatile uint8_t*)(0x60000003));
 #else
-  (*(volatile uint8_t*)(0x60000000)) = 0x00;
+  //(*(volatile uint8_t*)(0x60000000)) = 0x00;
 
   //__HAL_LOCK(&hsram1);
 	//  hsram1.State = HAL_SRAM_STATE_BUSY;
@@ -431,13 +434,25 @@ printf("Hello Start!!\r\n");
     temp2 = (*(volatile uint8_t*)(0x60000003));
 	//temp2 = *temp;
 	//__HAL_UNLOCK(&hsram1);
-	//hsram1.State = HAL_SRAM_STATE_READY;
+	//hsram1.State = HAL_SRAM_STATE_READY;\
+
 #endif
   printf("VER = 0x%02x%02x \r\n", temp1, temp2);
   W6100Initialze();
-  //ctlnetwork(CN_SET_NETINFO,&gWIZNETINFO);
+  (*(volatile uint8_t*)(0x60000000)) = (uint8_t)(0x41);
+  (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x20);
+  (*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
+  (*(volatile uint8_t*)(0x60000003)) = (uint8_t)(0x00);
+  (*(volatile uint8_t*)(0x60000003)) = (uint8_t)(0x08);
+  (*(volatile uint8_t*)(0x60000003)) = (uint8_t)(0xdc);
+  (*(volatile uint8_t*)(0x60000003)) = (uint8_t)(0xff);
+  (*(volatile uint8_t*)(0x60000003)) = (uint8_t)(0xff);
+  (*(volatile uint8_t*)(0x60000003)) = (uint8_t)(0xff);
+  setSHAR(gWIZNETINFO.mac);
+  ctlwizchip(CW_SYS_UNLOCK,& syslock);
+  ctlnetwork(CN_SET_NETINFO,&gWIZNETINFO);
   printf("Register value after W6100 initialize!\r\n");
-  //print_network_information();
+  print_network_information();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -447,6 +462,7 @@ printf("Hello Start!!\r\n");
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  loopback_tcps(1,ethBuf3,50003,AS_IPV4);
   }
   /* USER CODE END 3 */
 }
@@ -668,7 +684,6 @@ static void MX_FMC_Init(void)
   hnor1.Init.ContinuousClock = FMC_CONTINUOUS_CLOCK_SYNC_ONLY;
   hnor1.Init.WriteFifo = FMC_WRITE_FIFO_ENABLE;
   hnor1.Init.PageSize = FMC_PAGE_SIZE_NONE;
-
   /* Timing */
   Timing.AddressSetupTime = 15;
   Timing.AddressHoldTime = 15;
@@ -770,16 +785,24 @@ void print_network_information(void)
 	printf("Gate way   : %d.%d.%d.%d\n\r",gWIZNETINFO.gw[0],gWIZNETINFO.gw[1],gWIZNETINFO.gw[2],gWIZNETINFO.gw[3]);
 	printf("DNS Server : %d.%d.%d.%d\n\r",gWIZNETINFO.dns[0],gWIZNETINFO.dns[1],gWIZNETINFO.dns[2],gWIZNETINFO.dns[3]);
 
-/*
+
 	print_ipv6_addr("GW6 ", gWIZNETINFO.gw6);
 	print_ipv6_addr("LLA ", gWIZNETINFO.lla);
 	print_ipv6_addr("GUA ", gWIZNETINFO.gua);
 	print_ipv6_addr("SUB6", gWIZNETINFO.sn6);
-	*/
+
 
 	printf("\r\nNETCFGLOCK : %x\r\n", getNETLCKR());
 }
 
+void print_ipv6_addr(uint8_t* name, uint8_t* ip6addr)
+{
+	printf("%s : ", name);
+	printf("%04X:%04X", ((uint16_t)ip6addr[0] << 8) | ((uint16_t)ip6addr[1]), ((uint16_t)ip6addr[2] << 8) | ((uint16_t)ip6addr[3]));
+	printf(":%04X:%04X", ((uint16_t)ip6addr[4] << 8) | ((uint16_t)ip6addr[5]), ((uint16_t)ip6addr[6] << 8) | ((uint16_t)ip6addr[7]));
+	printf(":%04X:%04X", ((uint16_t)ip6addr[8] << 8) | ((uint16_t)ip6addr[9]), ((uint16_t)ip6addr[10] << 8) | ((uint16_t)ip6addr[11]));
+	printf(":%04X:%04X\r\n", ((uint16_t)ip6addr[12] << 8) | ((uint16_t)ip6addr[13]), ((uint16_t)ip6addr[14] << 8) | ((uint16_t)ip6addr[15]));
+}
 /* USER CODE END 4 */
 
 /**
