@@ -60,6 +60,12 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
+#define RSTn_Pin GPIO_PIN_4
+#define RSTn_GPIO_Port GPIOF
+#define QSPI_CLK_Pin GPIO_PIN_10
+#define QSPI_CLK_GPIO_Port GPIOF
+#define SPI_EN_Pin GPIO_PIN_4
+#define SPI_EN_GPIO_Port GPIOC
 #define LED_GREEN_Pin GPIO_PIN_0
 #define LED_GREEN_GPIO_Port GPIOB
 #define LED_RED_Pin GPIO_PIN_14
@@ -82,6 +88,7 @@ void Error_Handler(void);
 #define SWO_GPIO_Port GPIOB
 #define LED_YELLOW_Pin GPIO_PIN_1
 #define LED_YELLOW_GPIO_Port GPIOE
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
@@ -91,5 +98,3 @@ void Error_Handler(void);
 #endif
 
 #endif /* __MAIN_H */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

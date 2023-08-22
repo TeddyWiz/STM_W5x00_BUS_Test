@@ -41,10 +41,10 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-wiz_NetInfo gWIZNETINFO = { .mac = {0x00,0x08,0xdc,0xFF,0xFF,0xFF},
-							  .ip = {192,168,1,55},
+wiz_NetInfo gWIZNETINFO = { .mac = {0x00,0x08,0xdc,0x34,0x56,0x78},
+							  .ip = {192,168,15,111},
 							  .sn = {255, 255, 255, 0},
-							  .gw = {192, 168, 1, 1},
+							  .gw = {192, 168, 15, 1},
 							  .dns = {168, 126, 63, 1},
 							  //.dhcp = NETINFO_STATIC,
 							  .lla={0xfe,0x80,0x00,0x00,
@@ -133,6 +133,9 @@ uint8_t rxData;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void PeriphCommonClock_Config(void);
+static void MPU_Initialize(void);
+static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_HS_USB_Init(void);
@@ -190,11 +193,24 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		URX_BUF_Flag = 1;
 	  }
  }
+
+void chip_delay(uint16_t count)
+{
+	uint16_t i = 0, dummy =0;
+	for(i=0; i<count; i++)
+	{
+		dummy = i;
+	}
+}
+uint16_t g_delay_count = 2;
 void W6100BusWriteByte(uint32_t addr, iodata_t data)
 {
 	#if 1	//teddy 210422
 	//(*(volatile uint8_t*)(addr)) = (uint8_t)(data);
-	(*(__IO uint8_t *)((uint32_t)(addr)) = (data)); 
+	//__HAL_LOCK(&hnor1);
+	(*(__IO uint8_t *)((uint32_t)(addr)) = (data));
+	//chip_delay(g_delay_count);
+	//__HAL_UNLOCK(&hnor1);
 	#else
 	iodata_t Indata[2]={0, 0};
 	Indata[0] = data;
@@ -208,7 +224,13 @@ iodata_t W6100BusReadByte(uint32_t addr)
 {
 	#if 1	//teddy 210422
 	//return (*((volatile uint8_t*)(addr)));
-	return *(__IO uint8_t *)((uint32_t)(addr));
+	iodata_t ret=0;
+	//__HAL_LOCK(&hnor1);
+	//ret = *(__IO uint8_t *)((uint32_t)(addr));
+	ret = *(__IO uint8_t *)(addr);
+	//chip_delay(g_delay_count);
+	//__HAL_UNLOCK(&hnor1);
+	return ret;
 	#else
 	iodata_t result[2] = {0,0};
 	if(HAL_SRAM_Read_8b(&hsram1, (uint32_t *)addr, (uint16_t *)result, 1) != HAL_OK)
@@ -290,6 +312,7 @@ void W6100BusReadBurst(uint32_t addr,uint8_t* pBuf, uint32_t len,uint8_t addr_in
 }
 void W6100CsEnable(void)
 {
+	__HAL_LOCK(&hnor1);
 #if 0
 	__HAL_LOCK(&hsram1);
 	hsram1.State = HAL_SRAM_STATE_BUSY;
@@ -298,6 +321,7 @@ void W6100CsEnable(void)
 
 void W6100CsDisable(void)
 {
+	__HAL_UNLOCK(&hnor1);
 #if 0
 	__HAL_UNLOCK(&hsram1);
 	hsram1.State = HAL_SRAM_STATE_READY;
@@ -336,7 +360,7 @@ void W6100Initialze(void)
 		RegTemp = getVER();
 		printf("VER = %04x \r\n", RegTemp);
 
-		#if 1 //teddy st
+		#if 0 //teddy st
 		do
 		{
 			if (ctlwizchip(CW_GET_PHYLINK, (void *)&temp) == -1)
@@ -350,7 +374,43 @@ void W6100Initialze(void)
 	
 	
 }
-
+void bus_tx_mem_test(uint8_t sn)
+{
+	uint16_t i=0, temp_count = 1;
+	uint8_t temp_rx_data[1024], temp_tx_data[1024];
+	uint16_t data_len =1024;
+	for(i=0; i<data_len; i++)
+	  {
+		  temp_tx_data[i] = '0'+(uint8_t)(i%10);
+	  }
+	  temp_tx_data[data_len] = 0;
+	  printf("socket = %d \r\nbus tx data[%d] = %s\r\n", sn, data_len, temp_tx_data);
+	  *(__IO uint8_t *)((uint32_t)(0x60000000)) = (uint8_t)(0x00);
+		//chip_delay(temp_count);
+		*(__IO uint8_t *)((uint32_t)(0x60000001)) = (uint8_t)(0x00);
+		//chip_delay(temp_count);
+		*(__IO uint8_t *)((uint32_t)(0x60000002)) = (uint8_t)((0x10)|(sn<<5));
+		//chip_delay(temp_count);
+		for(i=0; i<data_len; i++)
+		{
+			*(__IO uint8_t *)((uint32_t)(0x60000003)) = (uint8_t)(temp_tx_data[i]);
+			//chip_delay(temp_count);
+		}
+		printf("bus read tx data \r\n");
+		*(__IO uint8_t *)((uint32_t)(0x60000000)) = (uint8_t)(0x00);
+		//chip_delay(temp_count);
+		*(__IO uint8_t *)((uint32_t)(0x60000001)) = (uint8_t)(0x00);
+		//chip_delay(temp_count);
+		*(__IO uint8_t *)((uint32_t)(0x60000002)) = (uint8_t)((0x10)|(sn<<5));
+		//chip_delay(temp_count);
+		for(i=0; i<data_len; i++)
+		{
+			temp_rx_data[i] = *(__IO uint8_t *)((uint32_t)(0x60000003));
+			//chip_delay(temp_count);
+		}
+		temp_rx_data[data_len] = 0;
+		printf("bus tx mem read data[%d] = %s\r\n", data_len, temp_rx_data);
+}
 
 /* USER CODE END 0 */
 
@@ -362,21 +422,36 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
   uint8_t temp1 = 0, temp2 = 0, *temp=NULL;
+  uint8_t temp_data[4]={0,};
   //temp = (volatile uint8_t*)(0x60000003);
   uint8_t syslock = SYS_NET_LOCK;
+  uint16_t temp_dummy=0;
+  uint8_t temp_status[10]={0,};
+  uint16_t temp_count = 1000;
+
+
   /* USER CODE END 1 */
+
+  /* Enable D-Cache---------------------------------------------------------*/
+  SCB_EnableDCache();
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
+  /* MPU Configuration--------------------------------------------------------*/
+  MPU_Config();
+
   /* USER CODE BEGIN Init */
-  
+  hnor1.CommandSet = (uint16_t)0x0001;
   /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
+
+/* Configure the peripherals common clocks */
+  PeriphCommonClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
@@ -392,9 +467,15 @@ int main(void)
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11|GPIO_PIN_3, GPIO_PIN_SET);
   HAL_Delay(100);
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RSTn_GPIO_Port, RSTn_Pin, GPIO_PIN_RESET);
   HAL_Delay(500);
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(RSTn_GPIO_Port, RSTn_Pin, GPIO_PIN_SET);
   HAL_Delay(500);
+  HAL_GPIO_WritePin(SPI_EN_GPIO_Port, SPI_EN_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(QSPI_CLK_GPIO_Port, QSPI_CLK_Pin, GPIO_PIN_SET);
+  HAL_Delay(500);
+
 printf("Hello Start!!\r\n");
   Fill_Buffer(aTxBuffer, BUFFER_SIZE, 0x0000);
   //HAL_SRAM_Write_16b(&hsram1, (uint32_t *)(SRAM_BANK_ADDR + WRITE_READ_ADDR), (uint16_t *)aTxBuffer, BUFFER_SIZE*2);
@@ -410,35 +491,58 @@ printf("Hello Start!!\r\n");
   (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x03);
   //(*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
   temp2 = (*(volatile uint8_t*)(0x60000003));
-#else
+#endif
   //(*(volatile uint8_t*)(0x60000000)) = 0x00;
 
   //__HAL_LOCK(&hsram1);
 	//  hsram1.State = HAL_SRAM_STATE_BUSY;
 
 	//(*(volatile uint32_t*)(0x60000000)) = (0x00<<16)|(0x02<<8)|(0x00);
+  	 //__HAL_LOCK(&hnor1);
+  //temp_data[0] = (uint8_t)(*(__IO uint8_t *)(0x60000000));
+  //*(__IO uint8_t *)((uint32_t)(0x60000000)) = (uint8_t)(0x00);
+  temp_count = 2;
+  *(__IO uint8_t *)((uint32_t)(0x60000000)) = (uint8_t)(0x00);
+  //chip_delay(temp_count);
+  *(__IO uint8_t *)((uint32_t)(0x60000001)) = (uint8_t)(0x00);
+  //chip_delay(temp_count);
+  *(__IO uint8_t *)((uint32_t)(0x60000002)) = (uint8_t)(0x00);
+  //chip_delay(temp_count);
+
+  temp_data[0] = (uint8_t)(*(__IO uint8_t *)(0x60000003));
+  //chip_delay(temp_count);
+  temp_data[1] = (uint8_t)(*(__IO uint8_t *)(0x60000003));
+  //chip_delay(temp_count);
+  temp_data[2] = (uint8_t)(*(__IO uint8_t *)(0x60000003));
+  //chip_delay(temp_count);
+  temp_data[3] = (uint8_t)(*(__IO uint8_t *)(0x60000003));
+  printf("CIDR VER = 0x%02x %02x %02x %02x\r\n", temp_data[0], temp_data[1], temp_data[2], temp_data[3]);
+
+  	chip_delay(temp_count);
+  	chip_delay(temp_count);
 	(*(volatile uint8_t*)(0x60000000)) = (uint8_t)(0x00);
+	//chip_delay(temp_count);
     (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x02);
+    //chip_delay(temp_count);
     (*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
+    //chip_delay(temp_count);
     temp1 = (*(volatile uint8_t*)(0x60000003));
-
-//	__HAL_UNLOCK(&hsram1);
-//	hsram1.State = HAL_SRAM_STATE_READY;
-		
-	//__HAL_LOCK(&hsram1);
-	//hsram1.State = HAL_SRAM_STATE_BUSY;
-	//(*(volatile uint32_t*)(0x60000000)) = (0x00<<16)|(0x03<<8)|(0x00);
+    //chip_delay(temp_count);
     (*(volatile uint8_t*)(0x60000000)) = (uint8_t)(0x00);
+    //chip_delay(temp_count);
     (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x03);
+    //chip_delay(temp_count);
     (*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
+    //chip_delay(temp_count);
     temp2 = (*(volatile uint8_t*)(0x60000003));
-	//temp2 = *temp;
-	//__HAL_UNLOCK(&hsram1);
-	//hsram1.State = HAL_SRAM_STATE_READY;\
+    //chip_delay(temp_count);
+  printf("bin VER = 0x%02x %02x \r\n", temp1, temp2);
 
-#endif
-  printf("VER = 0x%02x%02x \r\n", temp1, temp2);
+  //tx memory W/R
+  bus_tx_mem_test(0);
+
   W6100Initialze();
+#if 0
   (*(volatile uint8_t*)(0x60000000)) = (uint8_t)(0x41);
   (*(volatile uint8_t*)(0x60000001)) = (uint8_t)(0x20);
   (*(volatile uint8_t*)(0x60000002)) = (uint8_t)(0x00);
@@ -449,6 +553,7 @@ printf("Hello Start!!\r\n");
   (*(volatile uint8_t*)(0x60000003)) = (uint8_t)(0xff);
   (*(volatile uint8_t*)(0x60000003)) = (uint8_t)(0xff);
   setSHAR(gWIZNETINFO.mac);
+#endif
   ctlwizchip(CW_SYS_UNLOCK,& syslock);
   ctlnetwork(CN_SET_NETINFO,&gWIZNETINFO);
   printf("Register value after W6100 initialize!\r\n");
@@ -462,7 +567,7 @@ printf("Hello Start!!\r\n");
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  loopback_tcps(1,ethBuf3,50003,AS_IPV4);
+	  loopback_tcps(0,ethBuf3,50003,AS_IPV4);
   }
   /* USER CODE END 3 */
 }
@@ -480,14 +585,13 @@ void SystemClock_Config(void)
   /** Supply configuration update enable
   */
   HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
+
   /** Configure the main internal regulator output voltage
   */
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-  /** Macro to configure the PLL clock source
-  */
-  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_CSI);
+
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -500,7 +604,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 4;
   RCC_OscInitStruct.PLL.PLLN = 150;
   RCC_OscInitStruct.PLL.PLLP = 1;
-  RCC_OscInitStruct.PLL.PLLQ = 6;
+  RCC_OscInitStruct.PLL.PLLQ = 30;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_0;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOMEDIUM;
@@ -509,6 +613,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -526,9 +631,11 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
   /** Enable the SYSCFG APB clock
   */
   __HAL_RCC_CRS_CLK_ENABLE();
+
   /** Configures CRS
   */
   RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
@@ -539,6 +646,33 @@ void SystemClock_Config(void)
   RCC_CRSInitStruct.HSI48CalibrationValue = 32;
 
   HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
+}
+
+/**
+  * @brief Peripherals Common Clock Configuration
+  * @retval None
+  */
+void PeriphCommonClock_Config(void)
+{
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+
+  /** Initializes the peripherals clock
+  */
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_FMC|RCC_PERIPHCLK_USART3;
+  PeriphClkInitStruct.PLL2.PLL2M = 2;
+  PeriphClkInitStruct.PLL2.PLL2N = 150;
+  PeriphClkInitStruct.PLL2.PLL2P = 2;
+  PeriphClkInitStruct.PLL2.PLL2Q = 40;
+  PeriphClkInitStruct.PLL2.PLL2R = 10;
+  PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_1;
+  PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
+  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+  PeriphClkInitStruct.FmcClockSelection = RCC_FMCCLKSOURCE_PLL2;
+  PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_PLL2;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /**
@@ -685,10 +819,10 @@ static void MX_FMC_Init(void)
   hnor1.Init.WriteFifo = FMC_WRITE_FIFO_ENABLE;
   hnor1.Init.PageSize = FMC_PAGE_SIZE_NONE;
   /* Timing */
-  Timing.AddressSetupTime = 15;
+  Timing.AddressSetupTime = 1;
   Timing.AddressHoldTime = 15;
-  Timing.DataSetupTime = 255;
-  Timing.BusTurnAroundDuration = 15;
+  Timing.DataSetupTime = 1;
+  Timing.BusTurnAroundDuration = 1;
   Timing.CLKDivision = 16;
   Timing.DataLatency = 17;
   Timing.AccessMode = FMC_ACCESS_MODE_A;
@@ -712,6 +846,8 @@ static void MX_FMC_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -721,6 +857,12 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOF, RSTn_Pin|QSPI_CLK_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SPI_EN_GPIO_Port, SPI_EN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED_GREEN_Pin|LED_RED_Pin, GPIO_PIN_RESET);
@@ -736,6 +878,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : RSTn_Pin QSPI_CLK_Pin */
+  GPIO_InitStruct.Pin = RSTn_Pin|QSPI_CLK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : SPI_EN_Pin */
+  GPIO_InitStruct.Pin = SPI_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(SPI_EN_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED_GREEN_Pin LED_RED_Pin */
   GPIO_InitStruct.Pin = LED_GREEN_Pin|LED_RED_Pin;
@@ -772,6 +928,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_YELLOW_GPIO_Port, &GPIO_InitStruct);
 
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -805,6 +963,35 @@ void print_ipv6_addr(uint8_t* name, uint8_t* ip6addr)
 }
 /* USER CODE END 4 */
 
+/* MPU Configuration */
+
+void MPU_Config(void)
+{
+  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+
+  /* Disables the MPU */
+  HAL_MPU_Disable();
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.BaseAddress = 0x60000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_64KB;
+  MPU_InitStruct.SubRegionDisable = 0x0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  /* Enables the MPU */
+  HAL_MPU_Enable(MPU_HFNMI_PRIVDEF);
+
+}
+
 /**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
@@ -836,5 +1023,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
